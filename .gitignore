@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# ChromaDB
+chroma_db/
+*.chroma
+
+# Policy PDFs (sensitive documents - store locally, never commit)
+data/*.pdf
+data/*.PDF
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.next/
+frontend/build/
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Uploads (temp storage)
+backend/uploads/
+
+# Zip files
+*.zip
+
+# Large dataset files (too large for git — store locally)
+10k_data_li_india.txt/
+10k_data_li_india.txt.zip
