@@ -8,7 +8,7 @@ import aiofiles
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from backend.core import pdf_parser, rag_pipeline
-from backend.models.schemas import PolicyBenefits, UploadResponse
+from backend.models.schemas import UploadResponse
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +24,9 @@ MAX_FILE_SIZE_MB = 50
 async def upload_policy(file: UploadFile = File(...)) -> UploadResponse:
     """
     Upload a health insurance policy PDF.
-
-    Extracts text, chunks it, embeds chunks into ChromaDB, then immediately
-    runs benefit extraction — returning everything in one response so the
-    frontend never needs a separate /analyze call for the upload flow.
+    Saves the file, extracts text, chunks it, and embeds chunks into ChromaDB.
+    Returns a collection_id used by /analyze and /chat.
+    This step is fast (~5-10s). The AI extraction happens via /analyze separately.
     """
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
@@ -68,21 +67,12 @@ async def upload_policy(file: UploadFile = File(...)) -> UploadResponse:
         logger.exception("Embedding/indexing failed for %s", file.filename)
         raise HTTPException(status_code=500, detail=f"Indexing failed: {exc}")
 
-    # Run benefit extraction inline so the frontend gets everything in one call
-    benefits: PolicyBenefits | None = None
-    try:
-        raw = rag_pipeline.extract_benefits(collection_id)
-        valid = {k: v for k, v in raw.items() if k in PolicyBenefits.model_fields}
-        benefits = PolicyBenefits(**valid)
-    except Exception:
-        # Non-fatal — frontend can still call /analyze separately
-        logger.exception("Inline benefit extraction failed for collection %s", collection_id)
+    logger.info("Uploaded %s — %d pages, %d chunks", file.filename, page_count, chunks_indexed)
 
     return UploadResponse(
         collection_id=collection_id,
         filename=file.filename,
         pages_extracted=page_count,
         chunks_indexed=chunks_indexed,
-        message="Policy uploaded and indexed successfully.",
-        benefits=benefits,
+        message="Policy uploaded and indexed. Call /analyze to extract benefits.",
     )

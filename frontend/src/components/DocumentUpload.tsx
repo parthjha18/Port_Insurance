@@ -47,9 +47,14 @@ export function DocumentUpload({ label, result }: Props) {
       {(stage === 'uploading' || stage === 'analyzing') && (
         <div className="flex flex-col items-center gap-3 py-8">
           <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-          <p className="text-sm text-slate-600">
-            {stage === 'uploading' ? 'Uploading PDF…' : 'Parsing PDF and extracting benefits with AI…'}
-          </p>
+          {stage === 'uploading' ? (
+            <p className="text-sm text-slate-600">Uploading and indexing PDF…</p>
+          ) : (
+            <div className="text-center">
+              <p className="text-sm text-slate-600">AI is extracting policy benefits…</p>
+              <p className="mt-1 text-xs text-slate-400">This can take 30–90 seconds via OpenRouter</p>
+            </div>
+          )}
         </div>
       )}
 

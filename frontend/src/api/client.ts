@@ -2,9 +2,16 @@ import axios from 'axios'
 
 const BASE_URL = '/api'
 
+// Fast requests: upload, health, personas
 export const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 60000,
+  timeout: 30000,
+})
+
+// Slow requests: LLM-powered analyze, compare, chat (can take 60-120s on OpenRouter)
+export const llmApi = axios.create({
+  baseURL: BASE_URL,
+  timeout: 180000,
 })
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -15,7 +22,6 @@ export interface UploadResponse {
   pages_extracted: number
   chunks_indexed: number
   message: string
-  benefits?: PolicyBenefits | null
 }
 
 export interface PolicyBenefits {
@@ -95,7 +101,7 @@ export async function uploadPolicy(file: File): Promise<UploadResponse> {
 }
 
 export async function analyzePolicy(collectionId: string): Promise<PolicyBenefits> {
-  const res = await api.post<PolicyBenefits>('/analyze', { collection_id: collectionId })
+  const res = await llmApi.post<PolicyBenefits>('/analyze', { collection_id: collectionId })
   return res.data
 }
 
@@ -104,7 +110,7 @@ export async function comparePolicies(
   newCollectionId: string,
   personaId?: string,
 ): Promise<PortingComparison> {
-  const res = await api.post<PortingComparison>('/analyze/compare', {
+  const res = await llmApi.post<PortingComparison>('/analyze/compare', {
     old_collection_id: oldCollectionId,
     new_collection_id: newCollectionId,
     persona_id: personaId,
@@ -117,7 +123,7 @@ export async function chatWithPolicy(
   messages: ChatMessage[],
   personaId?: string,
 ): Promise<ChatResponse> {
-  const res = await api.post<ChatResponse>('/chat', {
+  const res = await llmApi.post<ChatResponse>('/chat', {
     collection_id: collectionId,
     messages,
     persona_id: personaId,

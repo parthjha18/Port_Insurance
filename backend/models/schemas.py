@@ -10,7 +10,6 @@ class UploadResponse(BaseModel):
     pages_extracted: int
     chunks_indexed: int
     message: str
-    benefits: Optional["PolicyBenefits"] = None
 
 
 class PolicyBenefits(BaseModel):

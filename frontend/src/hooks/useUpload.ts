@@ -25,31 +25,19 @@ export function useUpload(): UseUploadResult {
     setBenefits(null)
 
     try {
-      // Upload returns benefits inline — no extra /analyze round trip needed
-      setStage('analyzing')
+      // Step 1 — fast: save PDF, extract text, embed into ChromaDB (~5-10s)
       const upRes = await uploadPolicy(file)
       setUploadResponse(upRes)
 
-      if (upRes.benefits) {
-        // Benefits already extracted during upload (happy path)
-        setBenefits(upRes.benefits)
-        setStage('done')
-      } else {
-        // Fallback: call /analyze separately (e.g. if inline extraction failed)
-        try {
-          const benefitsRes = await analyzePolicy(upRes.collection_id)
-          setBenefits(benefitsRes)
-        } catch {
-          // Non-fatal — still show the upload success without benefits preview
-          console.warn('Benefit extraction failed. Analysis will run on Compare/Chat.')
-        }
-        setStage('done')
-      }
+      // Step 2 — slow: GPT-4o mini extracts structured benefits (~30-90s)
+      setStage('analyzing')
+      const benefitsRes = await analyzePolicy(upRes.collection_id)
+      setBenefits(benefitsRes)
+      setStage('done')
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : 'Upload failed. Please try again.'
+      const axiosErr = err as { response?: { data?: { detail?: string } }; message?: string }
+      const detail = axiosErr?.response?.data?.detail
+      const msg = detail ?? axiosErr?.message ?? 'Something went wrong. Please try again.'
       setError(msg)
       setStage('error')
     }
