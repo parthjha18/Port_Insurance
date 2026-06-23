@@ -6,7 +6,9 @@ from fastapi import APIRouter, HTTPException
 
 logger = logging.getLogger(__name__)
 
-from backend.core import rag_pipeline, vector_store
+from pathlib import Path
+
+from backend.core import rag_pipeline
 from backend.models.schemas import (
     AnalyzeRequest,
     CompareRequest,
@@ -17,9 +19,13 @@ from backend.models.schemas import (
 
 router = APIRouter(prefix="/analyze", tags=["analyze"])
 
+UPLOAD_DIR = Path("backend/uploads")
+
 
 def _require_collection(collection_id: str) -> None:
-    if not vector_store.collection_exists(collection_id):
+    """Check that the document was uploaded (chunks file exists on disk)."""
+    chunks_file = UPLOAD_DIR / f"{collection_id}.chunks.json"
+    if not chunks_file.exists():
         raise HTTPException(
             status_code=404,
             detail=f"Collection '{collection_id}' not found. Upload a PDF first.",
