@@ -22,7 +22,7 @@ export function DocumentUpload({ label, result }: Props) {
     onDrop,
     accept: { 'application/pdf': ['.pdf'] },
     maxFiles: 1,
-    disabled: stage === 'uploading' || stage === 'analyzing',
+    disabled: stage === 'uploading',
   })
 
   return (
@@ -44,17 +44,10 @@ export function DocumentUpload({ label, result }: Props) {
         </div>
       ) : null}
 
-      {(stage === 'uploading' || stage === 'analyzing') && (
+      {stage === 'uploading' && (
         <div className="flex flex-col items-center gap-3 py-8">
           <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-          {stage === 'uploading' ? (
-            <p className="text-sm text-slate-600">Uploading and indexing PDF…</p>
-          ) : (
-            <div className="text-center">
-              <p className="text-sm text-slate-600">AI is extracting policy benefits…</p>
-              <p className="mt-1 text-xs text-slate-400">This can take 30–90 seconds via OpenRouter</p>
-            </div>
-          )}
+          <p className="text-sm text-slate-600">Uploading, extracting and indexing PDF…</p>
         </div>
       )}
 

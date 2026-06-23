@@ -22,6 +22,7 @@ export interface UploadResponse {
   pages_extracted: number
   chunks_indexed: number
   message: string
+  benefits?: PolicyBenefits | null
 }
 
 export interface PolicyBenefits {

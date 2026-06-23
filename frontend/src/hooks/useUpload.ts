@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { uploadPolicy, analyzePolicy, type UploadResponse, type PolicyBenefits } from '../api/client'
+import { uploadPolicy, type UploadResponse, type PolicyBenefits } from '../api/client'
 
-export type UploadStage = 'idle' | 'uploading' | 'analyzing' | 'done' | 'error'
+export type UploadStage = 'idle' | 'uploading' | 'done' | 'error'
 
 export interface UseUploadResult {
   stage: UploadStage
@@ -25,20 +25,15 @@ export function useUpload(): UseUploadResult {
     setBenefits(null)
 
     try {
-      // Step 1 — fast: save PDF, extract text, embed into ChromaDB (~5-10s)
+      // Single fast call: PDF → text → regex extraction → embed (~5-10s, no LLM)
       const upRes = await uploadPolicy(file)
       setUploadResponse(upRes)
-
-      // Step 2 — slow: GPT-4o mini extracts structured benefits (~30-90s)
-      setStage('analyzing')
-      const benefitsRes = await analyzePolicy(upRes.collection_id)
-      setBenefits(benefitsRes)
+      if (upRes.benefits) setBenefits(upRes.benefits)
       setStage('done')
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { detail?: string } }; message?: string }
       const detail = axiosErr?.response?.data?.detail
-      const msg = detail ?? axiosErr?.message ?? 'Something went wrong. Please try again.'
-      setError(msg)
+      setError(detail ?? axiosErr?.message ?? 'Upload failed. Please try again.')
       setStage('error')
     }
   }
