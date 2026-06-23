@@ -2,10 +2,16 @@ import axios from 'axios'
 
 const BASE_URL = '/api'
 
-// Fast requests: upload, health, personas
+// Standard requests: health, personas (fast, < 5s)
 export const api = axios.create({
   baseURL: BASE_URL,
   timeout: 30000,
+})
+
+// Upload: local-only processing (pdfplumber + regex), no API calls → safe 60s ceiling
+export const uploadApi = axios.create({
+  baseURL: BASE_URL,
+  timeout: 60000,
 })
 
 // Slow requests: LLM-powered analyze, compare, chat (can take 60-120s on OpenRouter)
@@ -95,7 +101,7 @@ export interface PersonaListResponse {
 export async function uploadPolicy(file: File): Promise<UploadResponse> {
   const formData = new FormData()
   formData.append('file', file)
-  const res = await api.post<UploadResponse>('/upload', formData, {
+  const res = await uploadApi.post<UploadResponse>('/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
   return res.data

@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import json
 import logging
+import re
 import uuid
 from pathlib import Path
 
 import aiofiles
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
-from backend.core import pdf_parser, rag_pipeline
+from backend.core import pdf_parser
 from backend.models.schemas import PolicyBenefits, UploadResponse
 
 logger = logging.getLogger(__name__)
@@ -21,10 +23,7 @@ MAX_FILE_SIZE_MB = 50
 
 
 def _regex_to_benefits(raw: dict) -> PolicyBenefits:
-    """
-    Convert regex-extracted string fields into a typed PolicyBenefits object.
-    No LLM involved — this is instant.
-    """
+    """Convert regex-extracted string fields → typed PolicyBenefits. Zero latency."""
 
     def to_float(v: str | None) -> float | None:
         if v is None:
@@ -35,15 +34,12 @@ def _regex_to_benefits(raw: dict) -> PolicyBenefits:
             return None
 
     def years_from_str(v: str | None) -> int | None:
-        """Convert '3 years' or '36 months' → int years."""
         if v is None:
             return None
-        v_lower = v.lower()
-        import re
-        m = re.search(r"(\d+)\s*(year|years)", v_lower)
+        m = re.search(r"(\d+)\s*(year|years)", v, re.IGNORECASE)
         if m:
             return int(m.group(1))
-        m = re.search(r"(\d+)\s*(month|months)", v_lower)
+        m = re.search(r"(\d+)\s*(month|months)", v, re.IGNORECASE)
         if m:
             return max(1, round(int(m.group(1)) / 12))
         return None
@@ -63,16 +59,18 @@ def _regex_to_benefits(raw: dict) -> PolicyBenefits:
 @router.post("", response_model=UploadResponse)
 async def upload_policy(file: UploadFile = File(...)) -> UploadResponse:
     """
-    Upload a health insurance policy PDF.
+    Upload a health insurance PDF — returns in < 2 seconds, zero API calls.
 
-    Fast path (~5-10s):
-      1. Save the file
+    What happens here (all local, no network):
+      1. Save the file to disk
       2. Extract text with pdfplumber
-      3. Run regex extractor → instant structured fields (no LLM)
-      4. Chunk text and embed into ChromaDB
+      3. Run regex extractor → instant structured fields
+      4. Chunk the text and save chunks to a .chunks.json sidecar
 
-    The benefits returned here come from regex (instant preview).
-    The /analyze/compare endpoint runs the full LLM extraction + comparison.
+    What does NOT happen here:
+      - No OpenRouter embedding call (moved to compare/chat on first use)
+
+    The /analyze/compare endpoint embeds on first access (lazy).
     """
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
@@ -106,27 +104,29 @@ async def upload_policy(file: UploadFile = File(...)) -> UploadResponse:
 
     try:
         page_count = pdf_parser.get_page_count(str(dest_path))
-        # Regex extraction — zero latency, no API call
         regex_fields = pdf_parser.extract_structured_fields(text)
         benefits = _regex_to_benefits(regex_fields)
-        # Embedding — fast (~3-5s for small PDFs)
         chunks = pdf_parser.chunk_text(text)
-        chunks_indexed = rag_pipeline.ingest_document(collection_id, chunks)
+
+        # Persist chunks so RAG pipeline can embed lazily on first compare/chat
+        chunks_path = UPLOAD_DIR / f"{collection_id}.chunks.json"
+        chunks_path.write_text(json.dumps(chunks), encoding="utf-8")
+
     except Exception as exc:
         dest_path.unlink(missing_ok=True)
         logger.exception("Processing failed for %s", file.filename)
         raise HTTPException(status_code=500, detail=f"Processing failed: {exc}")
 
     logger.info(
-        "Uploaded %s — %d pages, %d chunks, insurer=%s",
-        file.filename, page_count, chunks_indexed, benefits.insurer_name,
+        "Uploaded %s — %d pages, %d chunks saved to disk (embedding deferred). insurer=%s",
+        file.filename, page_count, len(chunks), benefits.insurer_name,
     )
 
     return UploadResponse(
         collection_id=collection_id,
         filename=file.filename,
         pages_extracted=page_count,
-        chunks_indexed=chunks_indexed,
+        chunks_indexed=len(chunks),
         message="Policy uploaded and indexed successfully.",
         benefits=benefits,
     )
