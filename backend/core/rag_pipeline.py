@@ -60,6 +60,18 @@ def retrieve_context(collection_id: str, query: str, top_k: int = 5) -> list[str
     return vector_store.retrieve(collection_id, query_embedding, top_k=top_k)
 
 
+def answer_general(query: str, persona_context: str = "") -> dict:
+    """
+    Answer an insurance question from general IRDAI knowledge — no document needed.
+    Used by demo mode when no policy PDF has been uploaded.
+    """
+    from backend.core import llm_client, benefit_extractor
+
+    prompt = benefit_extractor.build_chat_prompt(query, context="", persona_context=persona_context)
+    answer = llm_client.complete(prompt)
+    return {"answer": answer, "sources": []}
+
+
 def answer_query(query: str, collection_id: str, persona_context: str = "") -> dict:
     """
     Full RAG answer: retrieve context → build prompt → call LLM → return answer + sources.

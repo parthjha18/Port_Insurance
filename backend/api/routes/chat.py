@@ -11,26 +11,23 @@ from backend.models.schemas import ChatRequest, ChatResponse
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 UPLOAD_DIR = Path("backend/uploads")
+DEMO_COLLECTION_ID = "demo-mode-no-collection"
 
 
-def _require_collection(collection_id: str) -> None:
-    """Check that the document was uploaded (chunks file exists on disk)."""
+def _has_collection(collection_id: str) -> bool:
+    """Return True if this collection has a document on disk (or in ChromaDB)."""
+    if collection_id == DEMO_COLLECTION_ID:
+        return False
     chunks_file = UPLOAD_DIR / f"{collection_id}.chunks.json"
-    if not chunks_file.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=f"Collection '{collection_id}' not found. Upload a PDF first.",
-        )
+    return chunks_file.exists()
 
 
 @router.post("", response_model=ChatResponse)
 async def chat(request: ChatRequest) -> ChatResponse:
     """
     Multi-turn Q&A against an uploaded policy document.
-    Returns a grounded answer with source excerpts.
+    In demo mode (no real collection), answers from general IRDAI knowledge.
     """
-    _require_collection(request.collection_id)
-
     if not request.messages:
         raise HTTPException(status_code=400, detail="At least one message is required.")
 
@@ -50,11 +47,19 @@ async def chat(request: ChatRequest) -> ChatResponse:
         raise HTTPException(status_code=400, detail="No user message found in conversation.")
 
     try:
-        result = rag_pipeline.answer_query(
-            query=last_user_message,
-            collection_id=request.collection_id,
-            persona_context=persona_context,
-        )
+        if _has_collection(request.collection_id):
+            # Normal RAG path: retrieve relevant chunks, then answer
+            result = rag_pipeline.answer_query(
+                query=last_user_message,
+                collection_id=request.collection_id,
+                persona_context=persona_context,
+            )
+        else:
+            # Demo / no-document path: answer from general IRDAI knowledge
+            result = rag_pipeline.answer_general(
+                query=last_user_message,
+                persona_context=persona_context,
+            )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Chat failed: {str(exc)}")
 
@@ -70,7 +75,6 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
     Streaming version of the chat endpoint.
     Yields text chunks as Server-Sent Events (SSE).
     """
-    _require_collection(request.collection_id)
 
     persona_context = ""
     if request.persona_id:
@@ -85,7 +89,10 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
         "",
     )
 
-    chunks = rag_pipeline.retrieve_context(request.collection_id, last_user_message)
+    if _has_collection(request.collection_id):
+        chunks = rag_pipeline.retrieve_context(request.collection_id, last_user_message)
+    else:
+        chunks = []
     context = "\n\n".join(chunks)
     prompt = benefit_extractor.build_chat_prompt(last_user_message, context, persona_context)
     system = benefit_extractor.build_system_prompt(persona_context)
