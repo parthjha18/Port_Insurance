@@ -26,6 +26,8 @@ chroma_db/
 data/*.pdf
 data/*.PDF
 
+# sample_pdfs/ is intentionally tracked for testing purposes
+
 # Node / Frontend
 frontend/node_modules/
 frontend/dist/
