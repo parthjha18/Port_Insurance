@@ -19,10 +19,23 @@ const CHANGE_ROW_BG = {
   unknown: '',
 }
 
-function formatValue(v: string | null | undefined): string {
+function formatValue(v: string | null | undefined, fieldName = ''): string {
   if (v == null || v === '' || v === 'null') return '—'
   if (v === 'true') return 'Yes'
   if (v === 'false') return 'No'
+
+  // Convert fractional years to a human-readable string
+  if (fieldName.toLowerCase().includes('year')) {
+    const num = parseFloat(v)
+    if (!isNaN(num)) {
+      if (num === 0) return 'None'
+      if (num < 1) {
+        const months = Math.round(num * 12)
+        return months <= 1 ? '~1 month' : `~${months} months`
+      }
+      return `${num} year${num === 1 ? '' : 's'}`
+    }
+  }
   return v
 }
 
@@ -35,9 +48,22 @@ export function BenefitComparisonTable({ comparison }: Props) {
       {/* Summary cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <SummaryCard
-          label="Cost Effective?"
-          value={cost_effective ? 'Yes' : 'No'}
-          positive={cost_effective}
+          label="AI Verdict"
+          value={
+            recommendation.toLowerCase().includes('advisable') ||
+            recommendation.toLowerCase().includes('recommend') ||
+            recommendation.toLowerCase().includes('port')
+              ? 'Port ✓'
+              : cost_effective
+                ? 'Port ✓'
+                : 'Stay'
+          }
+          positive={
+            recommendation.toLowerCase().includes('advisable') ||
+            recommendation.toLowerCase().includes('recommend') ||
+            recommendation.toLowerCase().includes('port') ||
+            cost_effective
+          }
         />
         <SummaryCard
           label="Premium Change"
@@ -104,8 +130,8 @@ export function BenefitComparisonTable({ comparison }: Props) {
                       <p className="mt-0.5 text-xs font-normal text-slate-500">{diff.notes}</p>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{formatValue(diff.old_value)}</td>
-                  <td className="px-4 py-3 text-slate-600">{formatValue(diff.new_value)}</td>
+                  <td className="px-4 py-3 text-slate-600">{formatValue(diff.old_value, diff.field)}</td>
+                  <td className="px-4 py-3 text-slate-600">{formatValue(diff.new_value, diff.field)}</td>
                   <td className="px-4 py-3 text-center">
                     {CHANGE_ICONS[diff.change_type] ?? CHANGE_ICONS.unknown}
                   </td>
