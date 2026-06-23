@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, HTTPException
+
+logger = logging.getLogger(__name__)
 
 from backend.core import rag_pipeline, vector_store
 from backend.models.schemas import (
@@ -33,6 +37,7 @@ async def analyze_policy(request: AnalyzeRequest) -> PolicyBenefits:
     try:
         raw = rag_pipeline.extract_benefits(request.collection_id)
     except Exception as exc:
+        logger.exception("Benefit extraction failed for collection %s", request.collection_id)
         raise HTTPException(status_code=500, detail=f"Extraction failed: {str(exc)}")
 
     try:

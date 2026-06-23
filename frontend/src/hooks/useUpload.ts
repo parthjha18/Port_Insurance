@@ -25,15 +25,31 @@ export function useUpload(): UseUploadResult {
     setBenefits(null)
 
     try {
+      // Upload returns benefits inline — no extra /analyze round trip needed
+      setStage('analyzing')
       const upRes = await uploadPolicy(file)
       setUploadResponse(upRes)
 
-      setStage('analyzing')
-      const benefitsRes = await analyzePolicy(upRes.collection_id)
-      setBenefits(benefitsRes)
-      setStage('done')
+      if (upRes.benefits) {
+        // Benefits already extracted during upload (happy path)
+        setBenefits(upRes.benefits)
+        setStage('done')
+      } else {
+        // Fallback: call /analyze separately (e.g. if inline extraction failed)
+        try {
+          const benefitsRes = await analyzePolicy(upRes.collection_id)
+          setBenefits(benefitsRes)
+        } catch {
+          // Non-fatal — still show the upload success without benefits preview
+          console.warn('Benefit extraction failed. Analysis will run on Compare/Chat.')
+        }
+        setStage('done')
+      }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Upload failed. Please try again.'
+      const msg =
+        err instanceof Error
+          ? err.message
+          : 'Upload failed. Please try again.'
       setError(msg)
       setStage('error')
     }

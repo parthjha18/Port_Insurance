@@ -48,7 +48,7 @@ export function DocumentUpload({ label, result }: Props) {
         <div className="flex flex-col items-center gap-3 py-8">
           <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
           <p className="text-sm text-slate-600">
-            {stage === 'uploading' ? 'Uploading and parsing PDF…' : 'Extracting policy benefits with AI…'}
+            {stage === 'uploading' ? 'Uploading PDF…' : 'Parsing PDF and extracting benefits with AI…'}
           </p>
         </div>
       )}
