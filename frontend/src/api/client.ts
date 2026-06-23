@@ -36,7 +36,7 @@ export interface PolicyBenefits {
   policy_number?: string | null
   sum_insured?: number | null
   annual_premium?: number | null
-  waiting_period_years?: number | null
+  waiting_period_years?: number | null  // float from LLM (e.g. 0.08 = ~1 month, 4 = 4 years)
   pre_existing_covered?: boolean | null
   no_claim_bonus_pct?: number | null
   co_pay_pct?: number | null

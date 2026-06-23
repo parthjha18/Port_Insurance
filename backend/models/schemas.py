@@ -18,7 +18,7 @@ class PolicyBenefits(BaseModel):
     policy_number: Optional[str] = None
     sum_insured: Optional[float] = None
     annual_premium: Optional[float] = None
-    waiting_period_years: Optional[int] = None
+    waiting_period_years: Optional[float] = None
     pre_existing_covered: Optional[bool] = None
     no_claim_bonus_pct: Optional[float] = None
     co_pay_pct: Optional[float] = None
@@ -28,7 +28,7 @@ class PolicyBenefits(BaseModel):
     day_care_procedures: Optional[bool] = None
     ayush_treatment: Optional[bool] = None
     ambulance_cover: Optional[str] = None
-    policy_tenure_years: Optional[int] = None
+    policy_tenure_years: Optional[float] = None
     family_floater: Optional[bool] = None
     claim_history_notes: Optional[str] = None
 
